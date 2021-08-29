@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="stylesheet" href="style.css">
+	<title>Tamagotchi Beka edition</title>
+</head>
+<body>
+	<div id="time_show"></div>
+	<div class="window">
+		<div id="menu" class="menu">
+
+			<div id="main_menu" class="main_menu">
+				<button id="cont" class="simple_button cont" onclick="cont_game()">Продолжить</button>
+				<button class="simple_button" onclick="new_game()">Новая игра</button>
+			</div>
+		</div>
+
+		<div id="game" class="game">
+
+			<div class="back_box">
+				<button class="game_button back" onclick="go_menu()">Назад</button>
+				<button id="options" class="game_button options" onclick="open_opt()">
+					<div class="line"></div>
+					<div class="line"></div>
+					<div class="line"></div>
+				</button>
+			</div>
+
+			<div class="game_box">
+
+				<div class="indicators">
+					<div class="ind_box">
+						<div class="ind_img"><img src="images/indicators/water.png"></div>
+						<div class="back_ind">
+							<div id="water" class="water"></div>
+						</div>
+					</div>
+
+					<div class="ind_box">
+						<div class="ind_img"><img src="images/indicators/sleep.png"></div>
+						<div class="back_ind">
+							<div id="sleep" class="sleep"></div>
+						</div>
+					</div>
+
+					<div class="ind_box">
+						<div class="ind_img">
+							<img src="images/indicators/food.png">
+						</div>
+						<div class="back_ind">
+							<div id="food" class="food"></div>
+						</div>
+					</div>
+					<div class="token_box">
+						<img src="images/indicators/coin.png" alt="">
+						<div id="token_count"></div>
+					</div>
+				</div>
+
+				<div class="anim_box">
+					<img id="meat" src="images/food/meat.png">
+					<img id="plant" src="">
+				</div>
+			</div>
+
+			<div class="actions_box">
+				<button class="game_button" onclick="give_water()">Полить</button>
+				<button class="game_button" onclick="give_food()">Покормить</button>
+				<button class="game_button" onclick="lull()">Усыпить</button>
+			</div>
+
+		</div>
+
+		<div id="opt_menu" class="opt_menu">
+
+			<div class="upgrades_box">
+				<div class="choose_upgrade">
+					<div onclick="choosen_up('water')" class="circle water_up"><img src="images/indicators/water.png"></div>
+					<div onclick="choosen_up('food')" class="circle food_up"><img src="images/indicators/food.png"></div>
+					<div onclick="choosen_up('sleep')" class="circle sleep_up"><img src="images/indicators/sleep.png"></div>
+				</div>
+				<div class="lvls_box">
+					<div id="waters_lvl" class="lvls_class"></div>
+					<div id="foods_lvl" class="lvls_class"></div>
+					<div id="sleeps_lvl" class="lvls_class"></div>
+				</div>
+				<div class="up_button">
+					<button onclick="train_plant()" class="game_button">Улучшить</button>
+				</div>
+
+				<div id="hide">
+					<div id="time_remain"></div>
+				</div>
+
+			</div>
+
+		</div>
+
+		<div id="you_lose" class="you_lose">
+			<div class="message_box">
+
+				<div id="reason" class="reason"></div>
+
+				<div class="button_box">
+					<button class="simple_button" onclick="go_menu()">Главное меню</button>
+					<button class="simple_button" onclick="new_game()">Новая игра</button>
+				</div>
+			</div>
+		</div>
+
+	</div>
+	
+
+	<script type="text/javascript">
+		//Кадр анимации
+		var anim=0, main_interval;
+
+		//Время сейчас, цвет, направление
+		var now = new Date(),plant_color,last_direction;
+
+		//Еда, вода,голод
+		var water,food,sleep,hunger=0,thirst=0,sleepiness=0;
+
+		var training, water_lvl=0, food_lvl=0, sleep_lvl=0;
+
+		var token_count=0,token_timer=0;
+
+		//Цвет растения от времени
+		if(21<=now.getHours()  || now.getHours()<=5)
+			plant_color="night";
+		else if(19<=now.getHours() && now.getHours()<=20)
+			plant_color="sunset";
+		else
+			plant_color="day";
+
+		//Была ли игра
+		if(localStorage.getItem('last_online')){
+			document.getElementById("cont").style.display = "block";
+		}
+
+		//Массив названий картинок
+		var other_eat=["1.png","2.png","3.png","4.png","5.png","6.png"]
+
+		//Продолжить
+		function cont_game()
+		{
+		 	document.getElementById("menu").style.display = "none";
+			document.getElementById("game").style.display = "flex";
+			now=new Date();
+			delta_time=now.getTime() - localStorage.getItem('last_online');
+
+			water_lvl = localStorage.getItem('water_lvl');
+			food_lvl = localStorage.getItem('food_lvl');
+			sleep_lvl = localStorage.getItem('sleep_lvl');
+			token_count = Math.floor(Number(localStorage.getItem('token_count')) + Number(delta_time/90000));
+			if(token_count>5)
+				token_count=5;
+			training=localStorage.getItem('training_type');
+			if(document.getElementsByClassName('choosen')[0])
+				$('.' + training + '_up').toggleClass('choosen');
+
+			food= Math.round(localStorage.getItem('food') - Number(delta_time/(90000+food_lvl*20000)));
+			water= Math.round(localStorage.getItem('water') - Number(delta_time/(90000+water_lvl*20000)));
+			if(localStorage.getItem('anim_num')==5)
+			{
+				sleep= Math.round(Number(localStorage.getItem('sleep')) + Number(delta_time/180000));
+			}
+			else
+				sleep= Math.round(localStorage.getItem('sleep') - Number(delta_time/(90000+sleep_lvl*20000)));
+			if(food<0){
+				food=0;
+			}
+			if(water<0){
+				water=0
+			}
+			if(sleep<0){
+				sleep=0;
+			}
+			change_anim(0);
+			main_interval = setInterval(update, 20);
+		}
+		//Новая игра
+		function new_game()
+		{
+			document.getElementById("menu").style.display = "none";
+			document.getElementById("game").style.display = "flex";
+			document.getElementById("you_lose").style.display = "none";
+			localStorage.setItem('water_lvl',0);
+			localStorage.setItem('food_lvl',0);
+			localStorage.setItem('sleep_lvl',0);
+			localStorage.removeItem('training_type');
+			localStorage.removeItem('start_training');
+			if(document.getElementsByClassName('choosen')[0])
+			{
+				$('.choosen').toggleClass('choosen');
+			}
+			food=80;
+			water=80;
+			sleep=80;
+			water_lvl = 0;
+			food_lvl = 0;
+			sleep_lvl = 0;
+			token_count=3;
+			change_anim(0);
+			main_interval = setInterval(update, 20);
+		}
+		//Перейти в главное меню
+		function go_menu()
+		{
+			document.getElementById("you_lose").style.display = "none";
+			document.getElementById("menu").style.display = "flex";
+			document.getElementById("game").style.display = "none";
+			stop_main_interval();
+			if(localStorage.getItem('last_online')){
+				document.getElementById("cont").style.display = "block";
+			}
+			document.getElementById("water").style.width="0%";
+			document.getElementById("food").style.width="0%";
+			document.getElementById("sleep").style.width="0%";
+		}
+
+		//Поменять картинку
+		function change_anim(number_of_anim) 
+		{
+			document.getElementById("plant").src = "images/plant/" + plant_color+ "/" + other_eat[number_of_anim];
+			anim=number_of_anim;
+		}
+		//Анимация когда ест
+		function eating_anim(number_of_anim)
+		{
+			change_anim(number_of_anim)
+			if(number_of_anim!=3)
+			{
+				setTimeout(eating_anim, 200, number_of_anim+1);
+			}
+			else
+			{
+				setTimeout(change_anim, 200, 0);
+				setTimeout(del_meat, 200);
+			}
+		}
+
+		function del_meat(){
+			document.getElementById("meat").style.display="none";
+		}
+
+		//Дать воды
+		function give_water()
+		{
+			if(water!=100 && token_count>0){
+				water+=10;
+				change_anim(2);
+				setTimeout(change_anim, 700, 0);
+				token_count-=1;
+			}
+		}
+
+		//Дать еды
+		function give_food()
+		{
+			if(food!=100 && token_count>0){
+				food+=10;
+				eating_anim(1);
+				document.getElementById("meat").style.display="block";
+				token_count-=1;
+			}
+		}
+
+		//Усыпить
+		function lull()
+		{
+			if(sleep<95)
+				change_anim(5);
+		}
+
+		function save_info()
+		{
+			now = new Date;
+			localStorage.setItem('last_online', now.getTime());
+			localStorage.setItem('water', water);
+			localStorage.setItem('food', food);
+			localStorage.setItem('sleep', sleep);
+			localStorage.setItem('anim_num', anim);
+			localStorage.setItem('water_lvl', water_lvl)
+			localStorage.setItem('food_lvl', food_lvl);
+			localStorage.setItem('sleep_lvl', sleep_lvl);
+			localStorage.setItem('token_count', token_count);
+		}
+
+		//Обновляет индикатор воды
+		function update_water()
+		{
+			str=document.getElementById("water").style.width;
+			if(str=="" && water>0)
+				document.getElementById("water").style.width="1%";
+			else if(Number(str.substring(0,str.length-1))<water)
+			{
+
+				document.getElementById("water").style.width=(Number(str.substring(0,str.length-1))+1)+"%";
+			}
+			else if(Number(str.substring(0,str.length-1))>water)
+				document.getElementById("water").style.width=(Number(str.substring(0,str.length-1))-1)+"%";
+			
+			if(thirst>20000+water_lvl*5000 && water!=0){
+				water-=1;
+				thirst-=20000+water_lvl*5000;
+			}
+		}
+		//Обновляет индикатор еды
+		function update_food()
+		{
+			str=document.getElementById("food").style.width;
+			if(str=="" && food>0)
+				document.getElementById("food").style.width="1%";
+			else if(Number(str.substring(0,str.length-1))<food){
+				document.getElementById("food").style.width=(Number(str.substring(0,str.length-1))+1)+"%";
+			}
+			else if(Number(str.substring(0,str.length-1))>food)
+				document.getElementById("food").style.width=(Number(str.substring(0,str.length-1))-1)+"%";
+
+			if(hunger>30000+food_lvl*5000 && food!=0){
+				food-=1;
+				hunger-=30000+food_lvl*5000;
+			}
+		}
+		//Обновление сна
+		function update_sleep()
+		{
+			str=document.getElementById("sleep").style.width;
+			if(str=="" && sleep>0)
+				document.getElementById("sleep").style.width="1%";
+			else if(Number(str.substring(0,str.length-1))<sleep){
+				document.getElementById("sleep").style.width=(Number(str.substring(0,str.length-1))+1)+"%";
+			}
+			else if(Number(str.substring(0,str.length-1))>sleep)
+				document.getElementById("sleep").style.width=(Number(str.substring(0,str.length-1))-1)+"%";
+
+			if(sleepiness>20000+sleep_lvl*5000 && sleep!=0)
+			{
+				sleep-=1;
+				sleepiness-=20000+sleep_lvl*5000;
+			}
+			else if(sleepiness<-20000 && sleep!=100)
+			{
+				sleep+=1;
+				sleepiness+=20000;
+			}
+		}
+		function update_lvls(){
+			document.getElementById('waters_lvl').innerHTML='Ур.' + water_lvl;
+			document.getElementById('foods_lvl').innerHTML='Ур.' + food_lvl;
+			document.getElementById('sleeps_lvl').innerHTML='Ур.' + sleep_lvl;
+		}
+
+		function update_token(){
+			if(token_timer>90000)
+			{
+				token_timer-=90000;
+				token_count+=1;
+			}
+			document.getElementById('token_count').innerHTML=token_count;
+		}
+		//Обновление кадров
+		function update()
+		{
+			//предел шкалы
+			if(food>100){
+				food=100;
+			}
+			if(water>100){
+				water=100;
+			}
+			if(sleep>=100){
+				sleep=100;
+				change_anim(0);
+			}
+			//обновление шкал
+			update_sleep();
+			update_water();
+			update_food();
+			update_lvls();
+			update_token();
+			//голод, жажда, сонливость
+			thirst+=20;
+			hunger+=20;
+			if(anim!=5)
+				sleepiness+=20;
+			else{
+				sleepiness-=20;
+			}
+			if(token_count<5)
+				token_timer+=20;
+			//проигрыш
+			if(food<=0){
+				document.getElementById("reason").innerHTML = "Ваше растение умерло от голода";
+				document.getElementById("you_lose").style.display = "flex";
+				localStorage.removeItem('last_online');
+				document.getElementById("cont").style.display = "none";
+				stop_main_interval();
+			}
+			else if(water<=0){
+				document.getElementById("reason").innerHTML = "Ваше растение умерло от обезвоживания";
+				document.getElementById("you_lose").style.display = "flex";
+				localStorage.removeItem('last_online');
+				document.getElementById("cont").style.display = "none";
+				stop_main_interval();
+			}
+			else if(sleep<=0){
+				document.getElementById("reason").innerHTML = "Ваше растение умерло без сна";
+				document.getElementById("you_lose").style.display = "flex";
+				localStorage.removeItem('last_online');
+				document.getElementById("cont").style.display = "none";
+				stop_main_interval();
+			}
+			else
+			{
+				training_proces();
+				//запись информации
+				save_info();
+			}
+		}
+
+		function training_proces()
+		{
+			if(localStorage.getItem('start_training'))
+			{
+				document.getElementById('hide').style.display = 'flex';
+				var need_time=0;
+
+				if(training=='water')
+					need_time=10800000*(1+Number(water_lvl));
+				else if(training=='food')
+					need_time=10800000*(1+Number(food_lvl));
+				else if(training=='sleep')
+					need_time=10800000*(1+Number(sleep_lvl));
+
+				now = new Date();
+				delta_time = need_time - Math.floor(now.getTime() - localStorage.getItem('start_training'));
+
+				if(delta_time>0){
+					var h,m,s;
+					h = Math.floor(delta_time/3600000);
+					m = Math.floor(delta_time%3600000 / 60000);
+					s = Math.floor(delta_time%3600000%60000/1000);
+					document.getElementById('time_remain').innerHTML = "Осталось<br/> " + h + ":" + m + ":" + s;
+				}
+				else
+				{
+
+					document.getElementById('hide').style.display = 'none';
+					localStorage.removeItem('training_type');
+					localStorage.removeItem('start_training');
+					if(training=='water')
+					{
+						water_lvl=Number(water_lvl)+1;
+					}
+					else if(training=='food')
+					{
+						food_lvl= Number(food_lvl)+1;
+					}
+					else if(training=='sleep')
+					{
+						sleep_lvl=Number(sleep_lvl)+1;
+					}
+					training=null;
+					$('.choosen').toggleClass('choosen');	
+				}
+			}
+			else
+			{
+				document.getElementById('hide').style.display = 'none';
+			}
+		}
+
+
+		function stop_main_interval(){
+			clearInterval(main_interval);
+		}
+
+		function open_opt(){
+			$('.options,.opt_menu').toggleClass('opened');
+		}
+		function choosen_up(el)
+		{
+			if($('.choosen'))
+			{
+				$('.choosen').toggleClass('choosen');
+				$('.' + el + '_up').toggleClass('choosen');
+			}
+			else
+			{
+				$('.' + el + '_up').toggleClass('choosen');
+			}
+			training=el;
+		}
+
+		function train_plant(){
+			if(training){
+				now=new Date();
+				localStorage.setItem('training_type', training);
+				localStorage.setItem('start_training', now.getTime());
+			}
+		}
+
+	</script>
+	<script src="http://code.jquery.com/jquery-1.11.0.min.js"></script>
+
+</body>
+</html>
